@@ -275,6 +275,7 @@ object CacheBook {
                     }
                 }.onSuccess {
                     onSuccess(chapter)
+                    delay(5000)
                 }.onError {
                     onPreError(chapter, it)
                     //出现错误等待一秒后重新加入待下载列表
@@ -299,6 +300,7 @@ object CacheBook {
                 executeContext = context
             ).onSuccess { content ->
                 onSuccess(chapter)
+                delay(5000)
                 downloadFinish(chapter, content)
             }.onError {
                 onPreError(chapter, it)
