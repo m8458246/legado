@@ -460,6 +460,12 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefInt(PreferKey.preDownloadNum, value)
         }
 
+    var offlineCacheInterval: Int
+        get() = appCtx.getPrefInt(PreferKey.offlineCacheInterval, 5)
+        set(value) {
+            appCtx.putPrefInt(PreferKey.offlineCacheInterval, value)
+        }
+
     val syncBookProgress get() = appCtx.getPrefBoolean(PreferKey.syncBookProgress, true)
 
     val syncBookProgressPlus get() = appCtx.getPrefBoolean(PreferKey.syncBookProgressPlus, false)

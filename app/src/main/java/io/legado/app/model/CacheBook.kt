@@ -11,6 +11,7 @@ import io.legado.app.data.entities.BookSource
 import io.legado.app.exception.ConcurrentException
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.isLocal
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.CompositeCoroutine
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.model.webBook.WebBook
@@ -146,6 +147,7 @@ object CacheBook {
         private val tasks = CompositeCoroutine()
         private var isStopped = false
         private var waitingRetry = false
+        private var lastDownloadTime: Long = 0
 
         val waitCount get() = waitDownloadSet.size
         val onDownloadCount get() = onDownloadSet.size
@@ -236,6 +238,23 @@ object CacheBook {
         }
 
         /**
+         * 应用离线缓存节流，确保章节下载之间至少间隔配置的秒数
+         */
+        private suspend fun applyOfflineCacheThrottle() {
+            val intervalMs = AppConfig.offlineCacheInterval * 1000L
+            if (intervalMs > 0 && lastDownloadTime > 0) {
+                val currentTime = System.currentTimeMillis()
+                val timeSinceLastDownload = currentTime - lastDownloadTime
+                if (timeSinceLastDownload < intervalMs) {
+                    val delayTime = intervalMs - timeSinceLastDownload
+                    AppLog.putDebug("离线缓存节流: 等待 ${delayTime}ms (${book.name})")
+                    delay(delayTime)
+                }
+            }
+            lastDownloadTime = System.currentTimeMillis()
+        }
+
+        /**
          * 从待下载列表内取第一条下载
          */
         @Synchronized
@@ -270,6 +289,7 @@ object CacheBook {
             onDownloadSet.add(chapterIndex)
             if (BookHelp.hasContent(book, chapter)) {
                 Coroutine.async(scope, context, executeContext = context) {
+                    applyOfflineCacheThrottle()
                     BookHelp.getContent(book, chapter)?.let {
                         BookHelp.saveImages(bookSource, book, chapter, it, 1)
                     }
@@ -289,15 +309,10 @@ object CacheBook {
                 }
                 return
             }
-            WebBook.getContent(
-                scope,
-                bookSource,
-                book,
-                chapter,
-                context = context,
-                start = CoroutineStart.LAZY,
-                executeContext = context
-            ).onSuccess { content ->
+            Coroutine.async(scope, context, executeContext = context) {
+                applyOfflineCacheThrottle()
+                WebBook.getContentAwait(bookSource, book, chapter)
+            }.onSuccess { content ->
                 onSuccess(chapter)
                 downloadFinish(chapter, content)
             }.onError {
@@ -310,9 +325,9 @@ object CacheBook {
                 onCancel(chapterIndex)
             }.onFinally {
                 onFinally()
-            }.apply {
-                tasks.add(this)
-            }.start()
+            }.let {
+                tasks.add(it)
+            }
         }
 
         suspend fun downloadAwait(chapter: BookChapter): String {

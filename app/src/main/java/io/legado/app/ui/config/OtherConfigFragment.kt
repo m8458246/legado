@@ -62,6 +62,7 @@ class OtherConfigFragment : PreferenceFragment(),
         addPreferencesFromResource(R.xml.pref_config_other)
         upPreferenceSummary(PreferKey.userAgent, AppConfig.userAgent)
         upPreferenceSummary(PreferKey.preDownloadNum, AppConfig.preDownloadNum.toString())
+        upPreferenceSummary(PreferKey.offlineCacheInterval, AppConfig.offlineCacheInterval.toString())
         upPreferenceSummary(PreferKey.threadCount, AppConfig.threadCount.toString())
         upPreferenceSummary(PreferKey.webPort, AppConfig.webPort.toString())
         AppConfig.defaultBookTreeUri?.let {
@@ -100,6 +101,15 @@ class OtherConfigFragment : PreferenceFragment(),
                 .setValue(AppConfig.preDownloadNum)
                 .show {
                     AppConfig.preDownloadNum = it
+                }
+
+            PreferKey.offlineCacheInterval -> NumberPickerDialog(requireContext())
+                .setTitle(getString(R.string.offline_cache_interval))
+                .setMaxValue(60)
+                .setMinValue(0)
+                .setValue(AppConfig.offlineCacheInterval)
+                .show {
+                    AppConfig.offlineCacheInterval = it
                 }
 
             PreferKey.threadCount -> NumberPickerDialog(requireContext())
@@ -167,6 +177,10 @@ class OtherConfigFragment : PreferenceFragment(),
                 upPreferenceSummary(key, AppConfig.preDownloadNum.toString())
             }
 
+            PreferKey.offlineCacheInterval -> {
+                upPreferenceSummary(key, AppConfig.offlineCacheInterval.toString())
+            }
+
             PreferKey.threadCount -> {
                 upPreferenceSummary(key, AppConfig.threadCount.toString())
                 postEvent(PreferKey.threadCount, "")
@@ -229,6 +243,9 @@ class OtherConfigFragment : PreferenceFragment(),
         when (preferenceKey) {
             PreferKey.preDownloadNum -> preference.summary =
                 getString(R.string.pre_download_s, value)
+
+            PreferKey.offlineCacheInterval -> preference.summary =
+                getString(R.string.offline_cache_interval_s, value)
 
             PreferKey.threadCount -> preference.summary = getString(R.string.threads_num, value)
             PreferKey.webPort -> preference.summary = getString(R.string.web_port_summary, value)

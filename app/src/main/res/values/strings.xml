@@ -835,6 +835,9 @@
     <string name="pre_download">Download in advance</string>
     <string name="pre_download_m">Pre-download %s pages</string>
     <string name="pre_download_s">Download %s chapters in advance</string>
+    <string name="offline_cache_interval">Offline cache interval</string>
+    <string name="offline_cache_interval_s">Interval: %s seconds between chapter downloads</string>
+    <string name="offline_cache_interval_summary">Interval (in seconds) between chapter downloads to avoid rate limiting/IP bans. Default: 5s</string>
     <string name="is_enabled">Is enabled</string>
     <string name="background_image">Background image</string>
     <string name="background_image_blurring">Background image blurring</string>

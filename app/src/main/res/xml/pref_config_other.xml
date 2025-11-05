@@ -119,6 +119,11 @@
             android:summary="@string/pre_download_s"
             android:title="@string/pre_download" />
 
+        <io.legado.app.lib.prefs.Preference
+            android:key="offlineCacheInterval"
+            android:summary="@string/offline_cache_interval_summary"
+            android:title="@string/offline_cache_interval" />
+
         <io.legado.app.lib.prefs.SwitchPreference
             android:defaultValue="true"
             android:key="replaceEnableDefault"
