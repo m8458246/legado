@@ -22,13 +22,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 
 object CacheBook {
 
     val cacheBookMap = ConcurrentHashMap<String, CacheBookModel>()
+    
+    // Global rate limiting for offline cache: ensure only one chapter downloads at a time
+    private val downloadMutex = Mutex()
+    private var lastDownloadTime = 0L
 
     @Synchronized
     fun getOrCreate(bookUrl: String): CacheBookModel? {
@@ -138,6 +144,21 @@ object CacheBook {
 
     val successDownloadSet = linkedSetOf<String>()
     val errorDownloadMap = hashMapOf<String, Int>()
+    
+    /**
+     * Apply rate limiting for offline cache downloads
+     * Ensures only one chapter downloads at a time with 5-second intervals
+     */
+    private suspend fun applyRateLimit() {
+        downloadMutex.withLock {
+            val now = System.currentTimeMillis()
+            val elapsed = now - lastDownloadTime
+            if (elapsed < 5000 && lastDownloadTime > 0) {
+                delay(5000 - elapsed)
+            }
+            lastDownloadTime = System.currentTimeMillis()
+        }
+    }
 
     class CacheBookModel(var bookSource: BookSource, var book: Book) {
 
@@ -289,15 +310,17 @@ object CacheBook {
                 }
                 return
             }
-            WebBook.getContent(
-                scope,
-                bookSource,
-                book,
-                chapter,
-                context = context,
-                start = CoroutineStart.LAZY,
-                executeContext = context
-            ).onSuccess { content ->
+            
+            // Apply rate limiting before starting network request
+            Coroutine.async(scope, context, executeContext = context) {
+                // Apply global rate limiting for offline cache
+                applyRateLimit()
+                
+                // Debug logging with timestamp
+                AppLog.put("CacheBook: Starting download for ${book.name} - ${chapter.title} at ${System.currentTimeMillis()}")
+                
+                WebBook.getContentAwait(bookSource, book, chapter)
+            }.onSuccess { content ->
                 onSuccess(chapter)
                 downloadFinish(chapter, content)
             }.onError {
@@ -310,9 +333,9 @@ object CacheBook {
                 onCancel(chapterIndex)
             }.onFinally {
                 onFinally()
-            }.apply {
-                tasks.add(this)
-            }.start()
+            }.let {
+                tasks.add(it)
+            }
         }
 
         suspend fun downloadAwait(chapter: BookChapter): String {
