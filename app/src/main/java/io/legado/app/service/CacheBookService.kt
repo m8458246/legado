@@ -169,7 +169,8 @@ class CacheBookService : BaseService() {
                 CacheBook.cacheBookMap.forEach {
                     val cacheBookModel = it.value
                     while (cacheBookModel.waitCount > 0) {
-                        if (CacheBook.onDownloadCount < threadCount) {
+                        // With global rate limiting, we only need one active download at a time
+                        if (CacheBook.onDownloadCount < 1) {
                             cacheBookModel.download(this, cachePool)
                         } else {
                             delay(100)
